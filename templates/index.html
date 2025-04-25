@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Threat Verifier Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .fade-in {
+      animation: fadeIn 0.6s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-r from-gray-900 via-black to-gray-900 text-white font-sans min-h-screen">
+  <div class="max-w-[1600px] mx-auto py-12 px-6">
+    <h1 class="text-4xl font-extrabold mb-6 text-center">🛡️ Threat Verifier Dashboard</h1>
+
+    <!-- IP / Domain Lookup -->
+    <div class="flex gap-4 mb-8">
+      <input id="query" class="flex-1 p-4 rounded bg-gray-800 border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter IP or domain">
+      <button onclick="lookup()" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded font-semibold transition transform hover:scale-105">Lookup</button>
+      <button onclick="clearResults()" class="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded font-semibold transition transform hover:scale-105">Clear</button>
+    </div>
+
+    <!-- File Upload Section -->
+    <div class="mb-10">
+      <h2 class="text-2xl font-semibold mb-4">📁 Scan a File</h2>
+
+      <form id="uploadForm" enctype="multipart/form-data">
+        <label for="fileInput" class="flex flex-col items-center justify-center w-full max-w-xl p-6 mx-auto border-2 border-dashed border-gray-600 rounded-2xl cursor-pointer bg-gray-800 hover:border-indigo-500 transition-all duration-300 ease-in-out">
+          <svg class="w-12 h-12 mb-3 text-indigo-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-8m0 0L8 8m4 0l4 0M4 16c0 1.104.896 2 2 2h12c1.104 0 2-.896 2-2V8c0-1.104-.896-2-2-2H6c-1.104 0-2 .896-2 2v8z" />
+          </svg>
+          <span class="text-gray-400 text-sm mb-2">Click or drag a file to upload</span>
+          <input type="file" name="file" id="fileInput" class="hidden" />
+        </label>
+
+        <div class="mt-4 text-center">
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded font-semibold transition transform hover:scale-105">Upload & Scan</button>
+        </div>
+      </form>
+
+      <div id="fileResult" class="mt-4 text-sm text-gray-300 text-center"></div>
+    </div>
+
+    <div id="results" class="space-y-6"></div>
+  </div>
+
+  <script>
+    function renderKeyValue(obj) {
+      let html = '';
+      for (let key in obj) {
+        const value = obj[key];
+        if (typeof value === 'object' && value !== null) {
+          html += `<div class="mb-2"><strong>${key}:</strong><div class="ml-4">${renderKeyValue(value)}</div></div>`;
+        } else {
+          html += `<div class="mb-1"><span class="text-blue-400">${key}:</span> <span class="text-green-300">${value}</span></div>`;
+        }
+      }
+      return html || '<span class="text-gray-400">No data</span>';
+    }
+
+    async function lookup() {
+      const query = document.getElementById("query").value.trim();
+      const resDiv = document.getElementById("results");
+
+      if (!query) return;
+
+      resDiv.innerHTML = `<div class="text-center text-gray-400">🔍 Looking up <span class="font-mono">${query}</span>...</div>`;
+
+      try {
+        const res = await fetch("/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+
+        const data = await res.json();
+
+        resDiv.innerHTML = `
+<div class="bg-gray-800 p-5 rounded fade-in shadow-lg mb-6">
+  <h2 class="text-2xl font-bold text-green-400 mb-2">🧠 Threat Verdict</h2>
+  <p><strong>Queried:</strong> <code class="text-blue-400">${data.query}</code></p>
+  <p><strong>IP:</strong> <code>${data.ip || 'N/A'}</code></p>
+  <p><strong>Domain:</strong> <code>${data.domain || 'N/A'}</code></p>
+  <p class="mt-2 text-lg font-semibold">
+    Verdict:
+    <span class="${data.is_malicious ? 'text-red-500' : 'text-green-500'}">
+      ${data.is_malicious ? '🚨 Malicious' : '✅ Not Malicious'}
+    </span>
+  </p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="bg-gray-800 p-5 rounded fade-in shadow-lg">
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="text-xl font-semibold text-yellow-300">🌐 IPInfo</h2>
+      <button onclick="copyToClipboard('ipinfo')" class="text-xs text-blue-300 hover:text-blue-500">📋 Copy</button>
+    </div>
+    <div id="ipinfo" class="text-sm overflow-x-auto max-h-96 font-mono">${renderKeyValue(data.ipinfo)}</div>
+  </div>
+
+  <div class="bg-gray-800 p-5 rounded fade-in shadow-lg">
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="text-xl font-semibold text-red-300">⚠️ AbuseIPDB</h2>
+      <button onclick="copyToClipboard('abuseipdb')" class="text-xs text-blue-300 hover:text-blue-500">📋 Copy</button>
+    </div>
+    <div id="abuseipdb" class="text-sm overflow-x-auto max-h-96 font-mono">${renderKeyValue(data.abuseipdb)}</div>
+  </div>
+
+  <div class="bg-gray-800 p-5 rounded fade-in shadow-lg">
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="text-xl font-semibold text-purple-300">🧬 VirusTotal</h2>
+      <button onclick="copyToClipboard('virustotal')" class="text-xs text-blue-300 hover:text-blue-500">📋 Copy</button>
+    </div>
+    <div id="virustotal" class="text-sm overflow-x-auto max-h-96 font-mono">${renderKeyValue(data.virustotal)}</div>
+  </div>
+</div>
+        `;
+      } catch (err) {
+        resDiv.innerHTML = `<div class="text-red-400">❌ Error: ${err.message}</div>`;
+      }
+    }
+
+    function clearResults() {
+  document.getElementById("query").value = "";
+  document.getElementById("results").innerHTML = "";
+  document.getElementById("fileInput").value = "";
+  document.getElementById("fileResult").innerHTML = "";
+  
+  // Reset file input label text
+  const fileLabel = document.querySelector('label[for="fileInput"] span');
+  if (fileLabel) fileLabel.textContent = "Click or drag a file to upload";
+}
+
+
+    function copyToClipboard(id) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard!");
+      });
+    }
+
+    // File name preview
+    document.getElementById("fileInput").addEventListener("change", function () {
+      const fileLabel = this.closest("label").querySelector("span");
+      fileLabel.textContent = this.files[0] ? `Selected: ${this.files[0].name}` : "Click or drag a file to upload";
+    });
+
+    // File scan
+    document.getElementById("uploadForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const fileInput = document.getElementById("fileInput");
+      const fileResult = document.getElementById("fileResult");
+
+      if (!fileInput.files.length) {
+        fileResult.innerHTML = `<span class="text-red-400">❌ Please select a file to scan.</span>`;
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      fileResult.innerHTML = `<span class="text-gray-400">🧪 Scanning file...</span>`;
+
+      try {
+        const res = await fetch("/scan-file", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          fileResult.innerHTML = `<span class="text-red-400">❌ Error: ${data.error}</span>`;
+        } else {
+          const isMalicious = data.malicious;
+          fileResult.innerHTML = `
+            <div class="mt-2">
+              <p><strong>File SHA256:</strong> <code class="text-blue-300">${data.sha256}</code></p>
+              <p><strong>Malicious Detections:</strong> <span class="${isMalicious ? 'text-red-400' : 'text-green-400'}">${data.malicious_count}</span></p>
+              <p><strong>Verdict:</strong> <span class="${isMalicious ? 'text-red-500' : 'text-green-500'}">${isMalicious ? '🚨 Malicious' : '✅ Clean'}</span></p>
+            </div>
+          `;
+        }
+      } catch (err) {
+        fileResult.innerHTML = `<span class="text-red-400">❌ Request failed: ${err.message}</span>`;
+      }
+    });
+  </script>
+</body>
+</html>
