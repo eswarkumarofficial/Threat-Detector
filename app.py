@@ -9,9 +9,9 @@ import dns.resolver  # pip install dnspython
 app = Flask(__name__)
 
 # API Keys (replace with your own)
-IPINFO_TOKEN = '205efb32e9e134'
-ABUSEIPDB_KEY = 'b2ed0d46561a7d76ba83d4446e92e53305ec4d2833f0f08e1e80ace686a7c59f8907a0a3803213a9'
-VT_KEY = 'e13cdd0b910a8fb0db81c2cbc66d0d3b4e014c10d560822d29cf53f39017a1f0'
+IPINFO_TOKEN = 'API'
+ABUSEIPDB_KEY = 'API'
+VT_KEY = 'API'
 
 def is_ip(address):
     return re.match(r"^\d{1,3}(\.\d{1,3}){3}$", address) is not None
